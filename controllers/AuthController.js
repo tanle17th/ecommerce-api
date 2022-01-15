@@ -1,29 +1,28 @@
 const User = require('../models/User')
 const CryptoJS = require('crypto-js')
+const jwt = require('jsonwebtoken')
+const { encryptPassword } = require('../utils/encrypt')
 
 class AuthController {
   // [POST] /api/auth/register
-  async registerUser(req, res, next) {
+  registerUser = async (req, res, next) => {
     const newUser = new User({
       username: req.body.username,
       // using AES standard and use PASS_SECRET_KEY from .env to encrypt:
-      password: CryptoJS.AES.encrypt(
-        req.body.password,
-        process.env.PASS_SECRET_KEY,
-      ).toString(),
+      password: encryptPassword(req.body.password),
       email: req.body.email,
     })
 
     try {
-      const addUser = await newUser.save()
-      res.status(201).json(addUser)
+      const user = await newUser.save()
+      res.status(201).json(user)
     } catch (err) {
       res.status(500).json(err)
     }
   }
 
   // [POST] /api/auth/login
-  async login(req, res, next) {
+  login = async (req, res, next) => {
     try {
       // get user:
       const user = await User.findOne({ username: req.body.username })
@@ -43,8 +42,24 @@ class AuthController {
         // 1. NOT returning password to the user
         // 2. ...others get everything of a document
         // actual data is stored in "._doc"
+        // ...others is Rest Parameters
+        // Rest Parameters = destructuring + spread operator
         const { password, ...others } = user._doc
-        res.status(200).json(others)
+
+        // after logging in successfully,
+        // user receives an accessToken that expiresIn 1d
+        // user will use this token to authorize against
+        // all sub sequence activities with the app
+        const accessToken = jwt.sign(
+          {
+            id: user._id,
+            isAdmin: user.isAdmin,
+          },
+          process.env.JWT_SECRET_KEY,
+          { expiresIn: '1d' },
+        )
+        // ...others is Spread Operator
+        res.status(200).json({ ...others, accessToken })
       } else {
         res.status(401).json('Wrong Password!')
       }
