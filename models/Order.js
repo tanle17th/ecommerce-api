@@ -12,7 +12,7 @@ const OrderSchema = new mongoose.Schema(
     amount: { type: Number, required: true },
     // address is an Object will be returned by Stripe:
     address: { type: Object, required: true },
-    status: { type: String, required: 'pending' },
+    status: { type: String, default: 'pending' },
   },
   {
     timestamps: true,
